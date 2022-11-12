@@ -106,11 +106,8 @@ cron: "0 0 * * *"
 # 定时任务随机等待时间，单位：分钟
 cron_random_wait: 0
 
-#windows环境自定义浏览器路径，仅支持chromium系列
+#windows环境自定义浏览器路径，仅支持chromium系列，需要将\替换为/或者\\
 edge_path: ""
-
-# 是否推送二维码
-qr_code: false
 
 # 启动时等待时间，为了防止代理启动比软件慢而报错，默认不等待，单位秒
 start_wait: 0
@@ -120,6 +117,9 @@ special_min_score: 10
 
 # 题目搜索的顺序，为true则从2018年最开始搜题，否则从现在最新开始搜题
 reverse_order: false
+
+# 定时任务运行时协程池的大小
+pool_size: 1
 
 
 ```

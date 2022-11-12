@@ -73,6 +73,27 @@ export async function getUsers(){
     return resp.data
 }
 
+export async function getConfig() {
+    let resp = await http.get(base+"/config/file");
+    return resp.data;
+}
+
+export async function restart() {
+    let resp = await http.post(base+"/restart");
+    return resp.data;
+}
+
+export async function update() {
+    let resp = await http.post(base+"/update");
+    return resp.data;
+}
+
+export async function saveConfig(data) {
+    let resp = await http.post(base+"/config/file",{
+        "data":data
+    });
+    return resp.data;
+}
 
 export async function getExpiredUsers(){
     let resp = await http.get(base+"/user/expired");

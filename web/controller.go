@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,13 +15,10 @@ import (
 
 	"github.com/johlanse/study_xxqg/conf"
 	"github.com/johlanse/study_xxqg/lib"
+	"github.com/johlanse/study_xxqg/lib/state"
 	"github.com/johlanse/study_xxqg/model"
 	"github.com/johlanse/study_xxqg/push"
 	"github.com/johlanse/study_xxqg/utils"
-)
-
-var (
-	state = sync.Map{}
 )
 
 // checkToken
@@ -186,13 +182,31 @@ func getExpiredUser() gin.HandlerFunc {
 			}
 			return
 		}
-		ctx.JSON(200, Resp{
-			Code:    200,
-			Message: "",
-			Data:    failUser,
-			Success: true,
-			Error:   "",
-		})
+		level := ctx.GetInt("level")
+		if level == 1 {
+			ctx.JSON(200, Resp{
+				Code:    200,
+				Message: "",
+				Data:    failUser,
+				Success: true,
+				Error:   "",
+			})
+		} else {
+			var myFaileUser []*model.User
+			for _, user := range failUser {
+				if user.Token == ctx.GetString("token") {
+					myFaileUser = append(myFaileUser, user)
+				}
+			}
+			ctx.JSON(200, Resp{
+				Code:    200,
+				Message: "",
+				Data:    myFaileUser,
+				Success: true,
+				Error:   "",
+			})
+		}
+
 	}
 }
 
@@ -232,17 +246,12 @@ func getUsers() gin.HandlerFunc {
 
 		var datas []map[string]interface{}
 		for _, user := range users {
-			var isStudy = false
-			_, ok := state.Load(user.UID)
-			if ok {
-				isStudy = true
-			}
 			datas = append(datas, map[string]interface{}{
 				"nick":       user.Nick,
-				"uid":        user.UID,
+				"uid":        user.Uid,
 				"token":      user.Token,
 				"login_time": user.LoginTime,
-				"is_study":   isStudy,
+				"is_study":   state.IsStudy(user.Uid),
 			})
 		}
 		ctx.JSON(200, Resp{
@@ -298,7 +307,7 @@ func study() gin.HandlerFunc {
 			Push:        push.GetPush(conf.GetConfig()),
 		}
 		core.Init()
-		state.Store(uid, core)
+		state.Add(user.Uid, core)
 		config := conf.GetConfig()
 		go func() {
 			core.LearnArticle(user)
@@ -325,11 +334,7 @@ func study() gin.HandlerFunc {
 func stopStudy() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		uid := ctx.Query("uid")
-		value, ok := state.Load(uid)
-		if !ok {
-			return
-		}
-		core := value.(*lib.Core)
+		core := state.Get(uid)
 		core.Quit()
 		ctx.JSON(200, Resp{
 			Code:    200,

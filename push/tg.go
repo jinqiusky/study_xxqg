@@ -12,11 +12,11 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/johlanse/study_xxqg/conf"
 	"github.com/johlanse/study_xxqg/lib"
+	"github.com/johlanse/study_xxqg/lib/state"
 	"github.com/johlanse/study_xxqg/model"
 	"github.com/johlanse/study_xxqg/utils"
 	"github.com/johlanse/study_xxqg/utils/update"
@@ -24,11 +24,18 @@ import (
 
 var (
 	handles sync.Map
-	datas   sync.Map
 	tgPush  func(id string, kind string, message string)
 )
 
 func TgInit() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			tgPush = func(id string, kind string, message string) {
+
+			}
+		}
+	}()
 	config := conf.GetConfig()
 	log.Infoln("已采用tg交互模式")
 	telegram := Telegram{
@@ -395,10 +402,10 @@ func studyAll(bot *Telegram, from int64, args []string) {
 			timer := time.After(time.Minute * 30)
 			c := make(chan int, 1)
 			go func() {
-				u := uuid.New().String()
-				bot.SendMsg(from, "已创建运行实例："+u)
-				datas.Store(u, &core)
-				defer datas.Delete(u)
+
+				bot.SendMsg(from, "已创建运行实例："+user.Uid)
+				state.Add(user.Uid, &core)
+				defer state.Delete(user.Uid)
 				core.Init()
 				defer core.Quit()
 				core.LearnArticle(user)
@@ -472,7 +479,7 @@ func deleteUser(bot *Telegram, from int64, args []string) {
 			bot.SendMsg(from, "错误的序号")
 			return
 		}
-		err = model.DeleteUser(users[i].UID)
+		err = model.DeleteUser(users[i].Uid)
 		if err != nil {
 			bot.SendMsg(from, err.Error())
 			return
@@ -543,10 +550,9 @@ func study(bot *Telegram, from int64, args []string) {
 	timer := time.After(time.Minute * 30)
 	c := make(chan int, 1)
 	go func() {
-		u := uuid.New().String()
-		bot.SendMsg(from, "已创建运行实例："+u)
-		datas.Store(u, &core)
-		defer datas.Delete(u)
+		bot.SendMsg(from, "已创建运行实例："+user.Uid)
+		state.Add(user.Uid, &core)
+		defer state.Delete(user.Uid)
 		core.Init()
 		defer core.Quit()
 
@@ -606,14 +612,14 @@ func getScores(bot *Telegram, from int64, args []string) {
 
 func quit(bot *Telegram, from int64, args []string) {
 	if len(args) < 1 {
-		datas.Range(func(key, value interface{}) bool {
+		state.Range(func(key, value interface{}) bool {
 			bot.SendMsg(from, "已退出运行实例"+key.(string))
 			core := value.(*lib.Core)
 			core.Quit()
 			return true
 		})
 	} else {
-		datas.Range(func(key, value interface{}) bool {
+		state.Range(func(key, value interface{}) bool {
 			if key.(string) == args[0] {
 				core := value.(*lib.Core)
 				core.Quit()

@@ -6,9 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
-	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -21,16 +19,17 @@ import (
 /* @Description:
  */
 func Restart() {
-	once := sync.Once{}
-	once.Do(func() {
-		log.Infoln("程序启动命令： " + strings.Join(os.Args, " "))
-		cmd := exec.Command(strings.Join(os.Args, " "))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Start()
-		os.Exit(3)
-	})
+	//once := sync.Once{}
+	//once.Do(func() {
+	//	log.Infoln("程序启动命令： " + strings.Join(os.Args, " "))
+	//	cmd := exec.Command(strings.Join(os.Args, " "))
+	//	cmd.Stdout = os.Stdout
+	//	cmd.Stderr = os.Stderr
+	//	cmd.Stdin = os.Stdin
+	//	cmd.Start()
+	//	os.Exit(3)
+	//})
+	os.Exit(201)
 
 }
 
@@ -100,6 +99,46 @@ func CheckQuestionDB() bool {
 	return true
 }
 
+/*时间戳->时间对象*/
+func Stamp2Time(stamp int64) time.Time {
+	stampStr := Stamp2Str(stamp)
+	timer := Str2Time(stampStr)
+	return timer
+}
+
+/**时间对象->字符串*/
+func Time2Str() string {
+	const shortForm = "2006-01-01 15:04:05"
+	t := time.Now()
+	temp := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+	str := temp.Format(shortForm)
+	return str
+}
+
+/**字符串->时间对象*/
+func Str2Time(formatTimeStr string) time.Time {
+	timeLayout := "2006-01-02 15:04:05"
+	loc, _ := time.LoadLocation("Local")
+	theTime, _ := time.ParseInLocation(timeLayout, formatTimeStr, loc) //使用模板在对应时区转化为time.time类型
+
+	return theTime
+
+}
+
+/*时间对象->时间戳*/
+func Time2Stamp() int64 {
+	t := time.Now()
+	millisecond := t.UnixNano() / 1e6
+	return millisecond
+}
+
+/*时间戳->字符串*/
+func Stamp2Str(stamp int64) string {
+	timeLayout := "2006-01-02 15:04:05"
+	str := time.Unix(stamp, 0).Format(timeLayout)
+	return str
+}
+
 func DownloadDbFile() {
 	defer func() {
 		err := recover()
@@ -109,7 +148,7 @@ func DownloadDbFile() {
 		}
 	}()
 	log.Infoln("正在从github下载题库文件！")
-	response, err := http.Get("https://github.com/johlanse/study_xxqg/releases/download/v1.0.36/QuestionBank.db")
+	response, err := http.Get("https://github.com/johlanse/study_xxqg/releases/download/v1.0.37-beta3/QuestionBank.db")
 	if err != nil {
 		log.Errorln("下载db文件错误" + err.Error())
 		return

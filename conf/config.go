@@ -30,6 +30,7 @@ type Config struct {
 		PushPlus struct {
 			Enable bool   `json:"enable" yaml:"enable" mapstructure:"enable"`
 			Token  string `json:"token" yaml:"token" mapstructure:"token"`
+			Topic  string `json:"topic" yaml:"topic" mapstructure:"topic"`
 		} `json:"push_plus" yaml:"push_plus" mapstructure:"push_plus"`
 	} `json:"push" yaml:"push" mapstructure:"push"`
 	TG struct {
@@ -48,10 +49,16 @@ type Config struct {
 		Port       int               `json:"port" yaml:"port" mapstructure:"port"`
 		CommonUser map[string]string `json:"common_user" yaml:"common_user" mapstructure:"common_user"`
 	} `json:"web" yaml:"web" mapstructure:"web"`
+	QQ struct {
+		Enable      bool    `json:"enable" mapstructure:"enable"`
+		PostAddr    string  `json:"post_addr" mapstructure:"post_addr"`
+		SuperUser   int64   `json:"super_user" mapstructure:"super_user"`
+		WhiteList   []int64 `json:"white_list" mapstructure:"white_list"`
+		AccessToken string  `json:"access_token" mapstructure:"access_token"`
+	}
 	Cron           string `json:"cron" yaml:"cron" mapstructure:"cron"`
 	CronRandomWait int    `json:"cron_random_wait" yaml:"cron_random_wait" mapstructure:"cron_random_wait"`
 	EdgePath       string `json:"edge_path" yaml:"edge_path" mapstructure:"edge_path"`
-	QrCOde         bool   `json:"qr_code" yaml:"qr_code" mapstructure:"qr_code"`
 	StartWait      int    `json:"start_wait" yaml:"start_wait" mapstructure:"start_wait"`
 	// cookie强制过期时间，单位为h
 	ForceExpiration int `json:"force_expiration" yaml:"force_expiration" mapstructure:"force_expiration"`
@@ -99,6 +106,8 @@ type Config struct {
 
 	CustomCron string `json:"custom_cron" yaml:"custom_cron" mapstructure:"custom_cron"`
 
+	PoolSize int `json:"pool_size" yaml:"pool_size" mapstructure:"pool_size"`
+
 	version string `mapstructure:"version"`
 }
 
@@ -106,6 +115,8 @@ var (
 	config = Config{
 		Model: 1,
 	}
+
+	configPath = "./config/config.yml"
 )
 
 //go:embed config_default.yml
@@ -154,7 +165,7 @@ func InitConfig(path string, restart func()) {
 	if path == "" {
 		path = "./config/config.yml"
 	}
-
+	configPath = path
 	pathDir := strings.TrimSuffix(path, "config.yml")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(pathDir)
@@ -177,6 +188,8 @@ func InitConfig(path string, restart func()) {
 	viper.SetDefault("scheme", "https://johlanse.github.io/study_xxqg/scheme.html?")
 	viper.SetDefault("special_min_score", 10)
 	viper.SetDefault("tg.custom_api", "https://api.telegram.org")
+	viper.SetDefault("pool_size", 1)
+	viper.AutomaticEnv()
 	err := viper.Unmarshal(&config, func(decoderConfig *mapstructure.DecoderConfig) {
 
 	})
@@ -192,32 +205,6 @@ func InitConfig(path string, restart func()) {
 			restart()
 		})
 	}
-	//file, err := os.ReadFile(path)
-	//if err != nil {
-	//	log.Warningln("检测到配置文件可能不存在")
-	//	err := os.WriteFile(path, defaultConfig, 0666)
-	//	if err != nil {
-	//		log.Errorln("写入到配置文件出现错误")
-	//		log.Errorln(err.Error())
-	//		return
-	//	}
-	//	log.Infoln("成功写入到配置文件,请重启应用")
-	//	os.Exit(3)
-	//}
-	//err = yaml.Unmarshal(file, &config)
-	//if err != nil {
-	//	log.Errorln(err.Error())
-	//	log.Panicln("配置文件解析失败，请检查配置文件")
-	//}
-	//if config.Scheme == "" {
-	//	config.Scheme = "https://johlanse.github.io/study_xxqg/scheme.html?"
-	//}
-	//if config.SpecialMinScore == 0 {
-	//	config.SpecialMinScore = 10
-	//}
-	//if config.TG.CustomApi == "" {
-	//	config.TG.CustomApi = "https://api.telegram.org"
-	//}
 }
 
 // GetConfig
@@ -227,4 +214,24 @@ func InitConfig(path string, restart func()) {
  */
 func GetConfig() Config {
 	return config
+}
+
+// GetConfigFile
+/* @Description:
+*  @return string
+ */
+func GetConfigFile() string {
+	file, err := os.ReadFile(configPath)
+	if err != nil {
+		return err.Error()
+	}
+	return string(file)
+}
+
+func SaveConfigFile(data string) error {
+	err := os.WriteFile(configPath, []byte(data), 0666)
+	if err != nil {
+		return err
+	}
+	return err
 }
